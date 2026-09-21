@@ -1,0 +1,14 @@
+
+        CLINICAL PRACTICE GUIDELINE: DIABETIC DERMOPATHY AND SKIN MANIFESTATIONS
+        
+        1. Overview:
+        Diabetic dermopathy consists of small, round, red-brown lesions occurring on the shins of patients with diabetes.
+        It is closely tied to elevated HbA1c levels (> 7.5%) and long-standing hyperglycemia.
+        
+        2. Medication Interactions & Contraindications:
+        - Metformin: Primary treatment for type 2 diabetes. Does not directly cause skin lesions, but uncontrolled blood glucose suggests secondary skin complications.
+        - Corticosteroids: Topically or systemically administered steroids can elevate blood glucose levels significantly. Use with caution in diabetic patients presenting with skin lesions.
+        
+        3. Diagnostic Recommendations:
+        If a visual model flags Diabetic Dermopathy, immediately review patient's recent fasting glucose, HbA1c, and active medication logs.
+        
