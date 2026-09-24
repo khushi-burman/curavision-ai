@@ -227,3 +227,9 @@ processed_data/y.npy
 *.keras
 *.h5
 __pycache__/
+
+venv/
+data/
+*.pth
+*.pt
+__pycache__/
