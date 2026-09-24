@@ -219,11 +219,3 @@ __marimo__/
 
 chroma_db/
 *.csv
-
-dataset/
-processed_data/X.npy
-processed_data/y.npy
-*.npy
-*.keras
-*.h5
-__pycache__/
