@@ -113,17 +113,31 @@ with st.container(key="signup_frame"):
 
                 if response.user:
 
+                    user_id = response.user.id
+
+                    profile_data = {
+                        "user_id": user_id,
+                        "full_name": clean_name,
+                        "email": clean_email
+                    }
+
+                    supabase.table("user_profiles").insert(
+                        profile_data
+                    ).execute()
+
                     st.session_state.logged_in = True
                     st.session_state.user_email = clean_email
                     st.session_state.user_name = clean_name
-                    st.session_state.user_id = response.user.id
+                    st.session_state.user_id = user_id
 
                     st.success("Account created successfully.")
 
                     st.switch_page("pages/home.py")
 
                 else:
-                    st.error("Account creation failed. Please try again.")
+                    st.error(
+                        "Account creation failed. Please try again."
+                    )
 
             except Exception as e:
 
