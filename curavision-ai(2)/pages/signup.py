@@ -10,26 +10,33 @@ st.set_page_config(
 
 inject_theme("""
 .stApp { background: var(--bg); }
-[data-testid="stMainBlockContainer"] { max-width: 500px; padding-top: 7vh; }
+
+[data-testid="stMainBlockContainer"] {
+    max-width: 500px;
+    padding-top: 7vh;
+}
+
 div.st-key-signup_frame {
     background: var(--surface);
-    border:1px solid var(--line);
-    border-top:3px solid var(--accent);
-    border-radius:var(--radius-md);
-    padding:34px 38px 30px;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent);
+    border-radius: var(--radius-md);
+    padding: 34px 38px 30px;
 }
+
 .cv-title {
-    font-family:var(--font-serif);
-    font-size:1.55rem;
-    font-weight:600;
-    text-align:center;
-    color:var(--ink);
+    font-family: var(--font-serif);
+    font-size: 1.55rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--ink);
 }
+
 .cv-sub {
-    text-align:center;
-    color:var(--ink-soft);
-    font-size:.88rem;
-    margin:5px 0 24px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: .88rem;
+    margin: 5px 0 24px;
 }
 """)
 
@@ -85,6 +92,10 @@ with st.container(key="signup_frame"):
         clean_name = name.strip()
         clean_email = email.strip().lower()
 
+        # -------------------------
+        # Basic validation
+        # -------------------------
+
         if not clean_name or not clean_email or not password:
             st.error("Please complete all fields.")
 
@@ -101,6 +112,10 @@ with st.container(key="signup_frame"):
 
             try:
 
+                # -------------------------
+                # Create Supabase Auth user
+                # -------------------------
+
                 response = supabase.auth.sign_up({
                     "email": clean_email,
                     "password": password,
@@ -115,15 +130,9 @@ with st.container(key="signup_frame"):
 
                     user_id = response.user.id
 
-                    profile_data = {
-                        "user_id": user_id,
-                        "full_name": clean_name,
-                        "email": clean_email
-                    }
-
-                    supabase.table("user_profiles").insert(
-                        profile_data
-                    ).execute()
+                    # -------------------------
+                    # Store login session
+                    # -------------------------
 
                     st.session_state.logged_in = True
                     st.session_state.user_email = clean_email
@@ -135,6 +144,7 @@ with st.container(key="signup_frame"):
                     st.switch_page("pages/home.py")
 
                 else:
+
                     st.error(
                         "Account creation failed. Please try again."
                     )
@@ -143,10 +153,20 @@ with st.container(key="signup_frame"):
 
                 error_message = str(e)
 
-                if "already registered" in error_message.lower():
+                if (
+                    "already registered" in error_message.lower()
+                    or "already exists" in error_message.lower()
+                ):
                     st.error(
                         "An account with this email already exists."
                     )
+
+                elif "rate limit" in error_message.lower():
+                    st.error(
+                        "Too many signup attempts. "
+                        "Please wait a minute and try again."
+                    )
+
                 else:
                     st.error(
                         f"Account creation failed: {error_message}"
