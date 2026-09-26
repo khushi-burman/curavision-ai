@@ -58,4 +58,4 @@ with st.container(key="login_frame"):
     if st.button("Create an account", type="secondary", use_container_width=True):
         st.switch_page("pages/signup.py")
 
-    st.markdown('<p class="cv-login-fine">Demo: demo@curavision.ai / password123</p>', unsafe_allow_html=True)
+    #st.markdown('<p class="cv-login-fine">Demo: demo@curavision.ai / password123</p>', unsafe_allow_html=True)

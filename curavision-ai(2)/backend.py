@@ -1,6 +1,5 @@
 import os
 from typing import Any
-
 import requests
 
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
@@ -21,4 +20,10 @@ def predict_chronic_risk(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def clinical_chat(question: str) -> dict[str, Any]:
-    return post_json("/clinical-rag-chat", {"question": question}, timeout=180)
+    # Sends both keys so it works regardless of whether FastAPI expects "query" or "question"
+    raw_response = post_json("/clinical-rag-chat", {"query": question, "question": question}, timeout=180)
+    
+    # Map the returned text to "clinical_response" so assistant.py can render it
+    reply_text = raw_response.get("clinical_response") or raw_response.get("response") or "No answer was returned."
+    return {"clinical_response": reply_text}
+

@@ -69,11 +69,28 @@ def predict_risk(data: VitalsInput):
 
         prediction = int(model.predict(input_df)[0])
         probability = float(model.predict_proba(input_df)[0][1])
+        status = "High Risk" if prediction == 1 else "Low Risk"
+
+        # Ask Llama 3.2 to generate a human-readable clinical explanation
+        explanation_prompt = f"""
+        You are CuraVision AI, an empathetic clinical risk assessment assistant.
+        A patient just completed a chronic metabolic screening with these findings:
+        - Overall Status: {status} (Predicted Risk Probability: {probability * 100:.1f}%)
+        - Patient Profile: Age {data.age}, BMI {data.bmi}
+        - Vitals & Labs: Blood Glucose {data.blood_glucose_level} mg/dL, HbA1c {data.HbA1c_level}%
+        - Medical History: Hypertension: {'Yes' if data.hypertension else 'No'}, Heart Disease: {'Yes' if data.heart_disease else 'No'}, Smoking: {data.smoking_history}
+
+        Provide a concise, patient-friendly summary formatted strictly in Markdown:
+        1. **Assessment Breakdown**: In 2-3 sentences, explain what these specific numbers mean and what factors contributed most to this risk score.
+        2. **Recommended Action Steps**: Provide 3 clear, actionable bullet points that the patient can take or discuss with their healthcare provider.
+        """
+        clinical_notes = llm.invoke(explanation_prompt).strip()
 
         return {
             "prediction": prediction,
-            "status": "High Risk" if prediction == 1 else "Low Risk",
-            "risk_score": round(probability, 4)
+            "status": status,
+            "risk_score": round(probability, 4),
+            "explanation": clinical_notes
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

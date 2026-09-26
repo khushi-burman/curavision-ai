@@ -8,7 +8,7 @@ import streamlit as st
 from PIL import Image
 
 from theme import inject_theme, top_nav, page_header, risk_badge, panel
-from backend import predict_chronic_risk
+from backend import predict_chronic_risk 
 
 st.set_page_config(page_title="Detection | CuraVision AI", page_icon="🩺", layout="wide", initial_sidebar_state="collapsed")
 
@@ -50,11 +50,76 @@ def run_skin_prediction(uploaded):
     return inference.predict_image(image, model, device, generate_heatmap=True)
 
 
+def generate_risk_explanation(payload: dict, risk_level: str) -> dict:
+    """Analyzes contributing clinical vitals and returns layman explanations and actionable steps."""
+    findings = []
+    actions = []
+
+    # 1. Glycemic Indicators (HbA1c & Blood Glucose)
+    hba1c = payload.get("HbA1c_level", 0.0)
+    if hba1c >= 6.5:
+        findings.append(f"**Elevated HbA1c ({hba1c}%):** Suggests prolonged high blood sugar over recent months, which heavily elevates chronic metabolic strain.")
+        actions.append("Schedule a comprehensive fasting glucose and HbA1c lab evaluation with a primary physician.")
+    elif hba1c >= 5.7:
+        findings.append(f"**Borderline HbA1c ({hba1c}%):** Falls within the prediabetes threshold, indicating early glycemic dysregulation.")
+        actions.append("Review dietary carbohydrate intake and adopt a low glycemic index nutritional plan.")
+
+    glucose = payload.get("blood_glucose_level", 0.0)
+    if glucose >= 140:
+        findings.append(f"**Elevated Blood Glucose ({glucose} mg/dL):** Current circulating sugar exceeds normal fasting/postprandial benchmarks.")
+        actions.append("Monitor blood sugar at regular intervals (fasting and 2 hours post-meal).")
+
+    # 2. Cardiovascular & Blood Pressure
+    if payload.get("hypertension") == 1:
+        findings.append("**History of Hypertension:** Elevated arterial pressure compounds microvascular and kidney strain when combined with high glucose.")
+        actions.append("Maintain blood pressure checks and monitor daily dietary sodium intake.")
+
+    if payload.get("heart_disease") == 1:
+        findings.append("**Cardiac Comorbidity:** Pre-existing cardiovascular indicators substantially increase systemic metabolic risk.")
+        actions.append("Coordinate ongoing care with a cardiologist to minimize compounding vascular risk.")
+
+    # 3. Lifestyle & Body Composition
+    bmi = payload.get("bmi", 0.0)
+    if bmi >= 30:
+        findings.append(f"**High BMI ({bmi}):** High adiposity is strongly correlated with increased cellular insulin resistance.")
+        actions.append("Incorporate 150 minutes of moderate aerobic activity weekly under clinical clearance.")
+    elif bmi >= 25:
+        findings.append(f"**Elevated BMI ({bmi}):** Borderline overweight range that contributes moderately to insulin resistance.")
+
+    smoking = payload.get("smoking_history")
+    if smoking in ["current", "former"]:
+        findings.append("**Smoking History:** Nicotine exposure promotes systemic endothelial inflammation and impairs vascular elasticity.")
+        if smoking == "current":
+            actions.append("Consult about smoking cessation resources to lower vascular inflammation.")
+
+    # Fallback recommendations if inputs are within normal parameters
+    if not findings:
+        findings.append("Vitals and metabolic markers appear within target clinical ranges based on the submitted parameters.")
+    if not actions:
+        actions.append("Continue routine annual wellness exams and maintain regular physical activity and balanced nutrition.")
+
+    return {
+        "findings": findings,
+        "actions": actions
+    }
+
+
 tab_skin, tab_risk = st.tabs(["Skin lesion analysis", "Chronic disease risk"])
 
+# skin disease detection
+
 with tab_skin, panel():
-    st.markdown('<div class="cv-section-heading">Trained skin-vision model</div>', unsafe_allow_html=True)
-    st.caption("EfficientNet-B4 classifier trained for 7 HAM10000 lesion classes. Upload a clear skin-lesion image.")
+    st.markdown('<div class="cv-section-heading">Skin Lesion Assessment</div>', unsafe_allow_html=True)
+    st.caption("Upload a clear photo of the skin lesion and describe any symptoms you are experiencing.")
+
+    # Symptom input box for patient observations
+    symptoms = st.text_area(
+        "Describe your symptoms & sensations",
+        placeholder="e.g., Noticeable itching, mild tenderness, bleeding when scratched, rapid change in color or size...",
+        key="skin_symptoms",
+        height=100
+    )
+
     uploaded = st.file_uploader("Upload lesion image", type=["jpg", "jpeg", "png"], key="skin_upload")
 
     if uploaded:
@@ -65,6 +130,7 @@ with tab_skin, panel():
                 try:
                     result = run_skin_prediction(uploaded)
                     st.session_state.skin_result = result
+                    st.session_state.recorded_symptoms = symptoms
                 except Exception as exc:
                     st.error(str(exc))
                     st.info("Place the trained best_skin_model.pth in the configured model path and include the vision inference package.")
@@ -78,11 +144,19 @@ with tab_skin, panel():
             st.write(result["label"])
         with c2:
             st.metric("Model confidence", f"{result['confidence'] * 100:.2f}%")
+
+        if st.session_state.get("recorded_symptoms"):
+            with st.container(border=True):
+                st.markdown("**Reported Symptoms:**")
+                st.write(st.session_state.recorded_symptoms)
+
         if result.get("gradcam_overlay") is not None:
             st.image(result["gradcam_overlay"], caption="Grad-CAM model attention", width=420)
         with st.expander("All class probabilities"):
             for label, probability in sorted(result["all_probabilities"].items(), key=lambda x: x[1], reverse=True):
                 st.write(f"{label}: {probability * 100:.2f}%")
+
+# diabetes risk evaluation
 
 with tab_risk, panel():
     st.markdown('<div class="cv-section-heading">Trained chronic-risk model</div>', unsafe_allow_html=True)
@@ -113,6 +187,7 @@ with tab_risk, panel():
             "blood_glucose_level": glucose,
             "smoking_history": smoking,
         }
+        st.session_state.last_risk_payload = payload
         try:
             with st.spinner("Running the trained chronic-risk model..."):
                 result = predict_chronic_risk(payload)
@@ -124,8 +199,41 @@ with tab_risk, panel():
             st.error(f"Risk prediction failed: {exc}")
 
     result = st.session_state.get("risk_result")
+    result = st.session_state.get("risk_result")
     if result:
         risk = "high" if int(result.get("prediction", 0)) == 1 else "low"
         st.markdown(risk_badge(risk, result.get("status", "Prediction")), unsafe_allow_html=True)
         st.metric("Predicted risk score", f"{float(result.get('risk_score', 0)) * 100:.2f}%")
+
+        # Human-readable explanation box generated by Llama 3.2
+        if result.get("explanation"):
+            st.divider()
+            with st.container(border=True):
+                st.subheader("📋 Clinical Assessment & Guidance")
+                st.markdown(result["explanation"])
+
+        st.caption("This is an AI screening result and is not a medical diagnosis.")
+        
+        st.divider()
+        last_payload = st.session_state.get("last_risk_payload", {})
+        explanation = generate_risk_explanation(last_payload, risk)
+
+        with st.container(border=True):
+            st.subheader("Clinical Summary & Interpretation")
+            st.markdown(
+                "**What this means:** Based on the submitted metabolic indicators, the machine learning model identifies "
+                + ("**a high likelihood of chronic metabolic dysregulation**." if risk == "high" else "**a low likelihood of chronic metabolic dysregulation**.")
+            )
+
+            col_findings, col_actions = st.columns(2)
+            with col_findings:
+                st.markdown("#### Primary Observations")
+                for f in explanation["findings"]:
+                    st.markdown(f"- {f}")
+
+            with col_actions:
+                st.markdown("#### Recommended Next Steps")
+                for a in explanation["actions"]:
+                    st.markdown(f"- {a}")
+
         st.caption("This is an AI screening result and is not a medical diagnosis.")
