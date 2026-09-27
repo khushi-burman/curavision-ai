@@ -1,0 +1,12 @@
+streamlit
+requests
+pillow
+pandas
+plotly
+reportlab
+numpy
+torch
+torchvision
+timm
+grad-cam
+supabase
