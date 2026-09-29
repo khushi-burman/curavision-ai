@@ -9,6 +9,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+if st.session_state.get("logged_in"):
+    st.switch_page("pages/home.py")
+
 LANDING_CSS = """
 [data-testid="stMainBlockContainer"] {
     max-width: 1180px;

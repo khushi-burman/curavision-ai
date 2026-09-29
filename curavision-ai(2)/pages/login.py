@@ -199,9 +199,9 @@ with st.container(key="login_frame"):
                                 "email": user.email or email,
                                 "full_name": full_name
                             }).execute()
-                    except Exception:
-                        pass # Non-blocking fallback if profile sync fails
-
+                    except Exception as profile_err:
+                        st.error(f"Supabase Error: {str(profile_err)}")
+                        st.stop()
                     # ------------------------------------------------
                     # Store application session information
                     # ------------------------------------------------
